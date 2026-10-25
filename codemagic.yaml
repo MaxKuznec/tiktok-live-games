@@ -1,0 +1,19 @@
+workflows:
+  android-apk:
+    name: Android APK
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Create android project
+        script: |
+          cp lib/main.dart /tmp/main_backup.dart
+          flutter create --platforms=android --org com.livegames --project-name live_games .
+          cp /tmp/main_backup.dart lib/main.dart
+      - name: Get packages
+        script: flutter pub get
+      - name: Build APK
+        script: flutter build apk --release
+    artifacts:
+      - build/app/outputs/flutter-apk/*.apk
