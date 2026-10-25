@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Live Games — мини-игры для стрима</title>
+<meta name="description" content="Кликер, голосование и колесо призов для эфира. Скачайте APK и установите на Android-телефон.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,400,0,0&display=swap">
+<style>
+:root {
+  color-scheme: light dark;
+  --primary: #0b57d0;
+  --on-primary: #ffffff;
+  --primary-container: #d3e3fd;
+  --on-primary-container: #041e49;
+  --secondary-container: #d7e3f7;
+  --surface: #fdfcff;
+  --surface-container: #f0f4f9;
+  --on-surface: #1b1b1f;
+  --on-surface-variant: #44474f;
+  --outline-variant: #c4c6d0;
+  box-sizing: border-box;
+  padding-top: env(safe-area-inset-top, 0px);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --primary: #a8c7fa;
+    --on-primary: #062e6f;
+    --primary-container: #0842a0;
+    --on-primary-container: #d3e3fd;
+    --secondary-container: #3d4858;
+    --surface: #111318;
+    --surface-container: #1d2024;
+    --on-surface: #e2e2e9;
+    --on-surface-variant: #c4c6d0;
+    --outline-variant: #44474f;
+  }
+}
+:root[data-theme="dark"] {
+  --primary: #a8c7fa;
+  --on-primary: #062e6f;
+  --primary-container: #0842a0;
+  --on-primary-container: #d3e3fd;
+  --secondary-container: #3d4858;
+  --surface: #111318;
+  --surface-container: #1d2024;
+  --on-surface: #e2e2e9;
+  --on-surface-variant: #c4c6d0;
+  --outline-variant: #44474f;
+}
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: env(safe-area-inset-top, 0px); }
+body {
+  margin: 0;
+  font-family: Roboto, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--surface);
+  color: var(--on-surface);
+  line-height: 1.5;
+  -webkit-text-size-adjust: 100%;
+}
+h1, h2, h3, p, ol { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; border-radius: 8px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-left: 20px; padding-right: 20px; }
+
+.material-symbols-rounded {
+  font-family: "Material Symbols Rounded";
+  font-weight: normal;
+  font-style: normal;
+  font-size: 24px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: "liga";
+}
+
+.top-bar { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 64px; }
+.brand { display: inline-flex; align-items: center; gap: 12px; font-size: 1.125rem; font-weight: 500; text-decoration: none; }
+.brand .material-symbols-rounded { color: var(--primary); }
+.nav { display: flex; gap: 4px; }
+.text-btn { display: inline-flex; align-items: center; height: 40px; padding: 0 12px; border-radius: 20px; color: var(--primary); text-decoration: none; font-size: .875rem; font-weight: 500; }
+
+.hero { display: grid; gap: 40px; align-items: center; padding-block: 40px 56px; }
+@media (min-width: 840px) {
+  .hero { grid-template-columns: 1.1fr 0.9fr; padding-block: 72px; }
+}
+h1 { font-size: clamp(2rem, 5vw, 3.25rem); line-height: 1.15; font-weight: 400; letter-spacing: -0.01em; margin-bottom: 16px; }
+.lead { font-size: 1.125rem; color: var(--on-surface-variant); max-width: 36ch; margin-bottom: 28px; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; height: 48px; padding: 0 24px; border-radius: 24px; font-family: inherit; font-size: .95rem; font-weight: 500; text-decoration: none; }
+.btn .material-symbols-rounded { font-size: 20px; }
+.btn.filled { background: var(--primary); color: var(--on-primary); }
+.btn.outlined { border: 1px solid var(--outline-variant); color: var(--primary); }
+
+.wheel-wrap { position: relative; width: min(300px, 80vw); aspect-ratio: 1 / 1; margin: 0 auto; }
+.wheel {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: repeating-conic-gradient(var(--primary-container) 0 45deg, var(--secondary-container) 45deg 90deg);
+  animation: spin 2.4s cubic-bezier(0.17, 0.67, 0.2, 1) both;
+}
+.wheel::after {
+  content: "";
+  position: absolute;
+  inset: 36%;
+  border-radius: 50%;
+  background: var(--surface);
+}
+.pointer {
+  position: absolute;
+  top: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  width: 0;
+  height: 0;
+  border-left: 14px solid transparent;
+  border-right: 14px solid transparent;
+  border-top: 24px solid var(--on-surface);
+}
+@keyframes spin {
+  to { transform: rotate(1800deg); }
+}
+
+.section { padding-block: 56px; }
+h2 { font-size: 1.75rem; font-weight: 400; margin-bottom: 24px; }
+.cards { display: grid; gap: 16px; }
+@media (min-width: 720px) {
+  .cards { grid-template-columns: repeat(3, 1fr); }
+}
+.card { background: var(--surface-container); border-radius: 16px; padding: 24px; }
+.badge { width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center; background: var(--primary-container); color: var(--on-primary-container); margin-bottom: 16px; }
+.card h3 { font-size: 1.25rem; font-weight: 500; margin-bottom: 8px; }
+.card p { color: var(--on-surface-variant); }
+
+.steps { list-style: none; padding: 0; display: grid; gap: 12px; counter-reset: step; }
+.steps li { counter-increment: step; display: flex; align-items: center; gap: 16px; background: var(--surface-container); border-radius: 16px; padding: 16px 20px; }
+.steps li::before {
+  content: counter(step);
+  flex: 0 0 32px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--primary);
+  color: var(--on-primary);
+  font-weight: 500;
+}
+.note { display: flex; gap: 12px; margin-top: 20px; padding: 16px 20px; border-radius: 12px; background: var(--secondary-container); }
+.note .material-symbols-rounded { color: var(--on-surface-variant); }
+.note p + p { margin-top: 8px; }
+.install-action { margin-top: 24px; }
+
+footer { border-top: 1px solid var(--outline-variant); padding-block: 32px 40px; font-size: .875rem; color: var(--on-surface-variant); }
+footer p + p { margin-top: 8px; }
+footer a { color: var(--primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wheel { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<header class="wrap top-bar">
+  <a class="brand" href="#top">
+    <span class="material-symbols-rounded" aria-hidden="true">casino</span>
+    Live Games
+  </a>
+  <nav class="nav" aria-label="Разделы">
+    <a class="text-btn" href="#games">Игры</a>
+    <a class="text-btn" href="#install">Установка</a>
+  </nav>
+</header>
+
+<main id="top">
+  <section class="wrap hero">
+    <div>
+      <h1>Мини-игры для твоего стрима</h1>
+      <p class="lead">Кликер, голосование и колесо призов для эфира. Работают на Android-телефоне, без компьютера.</p>
+      <div class="actions">
+        <a class="btn filled" href="https://github.com/MaxKuznec/tiktok-live-games/releases/latest/download/LiveGames.apk" download>
+          <span class="material-symbols-rounded" aria-hidden="true">download</span>
+          Скачать APK
+        </a>
+        <a class="btn outlined" href="#install">Как установить</a>
+      </div>
+    </div>
+    <div class="wheel-wrap" aria-hidden="true">
+      <span class="pointer"></span>
+      <div class="wheel"></div>
+    </div>
+  </section>
+
+  <section class="wrap section" id="games">
+    <h2>Три игры</h2>
+    <div class="cards">
+      <article class="card">
+        <div class="badge"><span class="material-symbols-rounded" aria-hidden="true">touch_app</span></div>
+        <h3>Кликер</h3>
+        <p>Лайк даёт 1 очко, подарок — 10, большой подарок — 50.</p>
+      </article>
+      <article class="card">
+        <div class="badge"><span class="material-symbols-rounded" aria-hidden="true">how_to_vote</span></div>
+        <h3>Голосование</h3>
+        <p>Комментарии «A» или «B» считаются голосами. Русские «А» и «В» тоже засчитываются. Шкала показывает проценты.</p>
+      </article>
+      <article class="card">
+        <div class="badge"><span class="material-symbols-rounded" aria-hidden="true">casino</span></div>
+        <h3>Колесо призов</h3>
+        <p>Восемь секторов от 50 до 1000 очков. Подарок запускает вращение, результат попадает в историю.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="wrap section" id="install">
+    <h2>Как установить</h2>
+    <ol class="steps">
+      <li>Нажмите «Скачать APK». Файл появится в папке «Загрузки».</li>
+      <li>Если браузер попросит, разрешите установку из него в настройках телефона.</li>
+      <li>Откройте скачанный файл и нажмите «Установить».</li>
+      <li>Запустите «Live Games» с экрана телефона.</li>
+    </ol>
+    <div class="note">
+      <span class="material-symbols-rounded" aria-hidden="true">info</span>
+      <div>
+        <p>Chrome может показать «Невозможно безопасно скачать файл». Для APK вне Google Play это обычное предупреждение. Нажмите «Сохранить». Если файл не скачался, откройте меню Chrome ⋮ → «Загрузки» и выберите «Всё равно скачать».</p>
+        <p>Google Play Protect может написать, что приложение не проверено. Для приложений вне Google Play это ожидаемо: выберите «Установить всё равно». Название кнопки может отличаться.</p>
+        <p>Чтобы обновиться, установите новый APK поверх старого. Если телефон не даёт, сначала удалите старую версию.</p>
+      </div>
+    </div>
+    <div class="actions install-action">
+      <a class="btn filled" href="https://github.com/MaxKuznec/tiktok-live-games/releases/latest/download/LiveGames.apk" download>
+        <span class="material-symbols-rounded" aria-hidden="true">download</span>
+        Скачать APK
+      </a>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Live Games — независимое приложение. Оно не связано с TikTok и не одобрено компанией TikTok.</p>
+    <p>Исходный код: <a href="https://github.com/MaxKuznec/tiktok-live-games">GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>
