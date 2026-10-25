@@ -177,25 +177,35 @@ class WheelPage extends StatefulWidget {
 
 class _WheelPageState extends State<WheelPage> {
   final Random _rnd = Random();
-  final List<String> _prizes = const [
-    '50 очков',
-    '100 очков',
-    '150 очков',
-    '200 очков',
-    '300 очков',
-    '500 очков',
-  ];
+  final List<int> _prizes = const [50, 100, 150, 200, 250, 300, 500, 1000];
   final List<String> _history = [];
   double _turns = 0;
+  bool _spinning = false;
+  int? _pendingIndex;
   String _result = 'Нажми «Крутить»';
 
   void _spin() {
-    final prize = _prizes[_rnd.nextInt(_prizes.length)];
+    if (_spinning) return;
+    final n = _prizes.length;
+    final i = _rnd.nextInt(n);
+    final f = 1 - (i + 0.5) / n + (_rnd.nextDouble() - 0.5) * 0.8 / n;
     setState(() {
-      _turns += 3 + _rnd.nextDouble();
+      _spinning = true;
+      _pendingIndex = i;
+      _turns = _turns.floorToDouble() + 4 + f;
+    });
+  }
+
+  void _onSpinEnd() {
+    final i = _pendingIndex;
+    if (i == null) return;
+    setState(() {
+      final prize = '${_prizes[i]} очков';
       _result = prize;
       _history.insert(0, prize);
       if (_history.length > 10) _history.removeLast();
+      _spinning = false;
+      _pendingIndex = null;
     });
   }
 
@@ -203,28 +213,128 @@ class _WheelPageState extends State<WheelPage> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          AnimatedRotation(
-            turns: _turns,
-            duration: const Duration(seconds: 2),
-            curve: Curves.easeOutCubic,
-            child: Icon(Icons.casino, size: 120, color: scheme.primary),
-          ),
-          const SizedBox(height: 24),
-          Text(_result, style: Theme.of(context).textTheme.headlineMedium),
-          const SizedBox(height: 24),
-          FilledButton.icon(
-            onPressed: _spin,
-            icon: const Icon(Icons.play_arrow),
-            label: const Text('Крутить'),
-          ),
-          const SizedBox(height: 24),
-          Text('История: ${_history.join(', ')}',
-              textAlign: TextAlign.center),
-        ],
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 300,
+              height: 320,
+              child: Stack(
+                alignment: Alignment.topCenter,
+                children: [
+                  Positioned(
+                    top: 24,
+                    child: AnimatedRotation(
+                      turns: _turns,
+                      duration: const Duration(seconds: 4),
+                      curve: Curves.easeOutCubic,
+                      onEnd: _onSpinEnd,
+                      child: SizedBox(
+                        width: 296,
+                        height: 296,
+                        child: CustomPaint(
+                          painter: WheelPainter(
+                            labels: _prizes.map((p) => '$p').toList(),
+                            colors: [
+                              scheme.primaryContainer,
+                              scheme.secondaryContainer,
+                              scheme.tertiaryContainer,
+                            ],
+                            textColors: [
+                              scheme.onPrimaryContainer,
+                              scheme.onSecondaryContainer,
+                              scheme.onTertiaryContainer,
+                            ],
+                            lineColor: scheme.surface,
+                            hubColor: scheme.surface,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Icon(Icons.arrow_drop_down,
+                      size: 56, color: scheme.onSurface),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(_result, style: Theme.of(context).textTheme.headlineMedium),
+            const SizedBox(height: 16),
+            FilledButton.icon(
+              onPressed: _spinning ? null : _spin,
+              icon: const Icon(Icons.play_arrow),
+              label: const Text('Крутить'),
+            ),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text('История: ${_history.join(', ')}',
+                  textAlign: TextAlign.center),
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
       ),
     );
   }
+}
+
+class WheelPainter extends CustomPainter {
+  WheelPainter({
+    required this.labels,
+    required this.colors,
+    required this.textColors,
+    required this.lineColor,
+    required this.hubColor,
+  });
+
+  final List<String> labels;
+  final List<Color> colors;
+  final List<Color> textColors;
+  final Color lineColor;
+  final Color hubColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = size.center(Offset.zero);
+    final radius = min(size.width, size.height) / 2;
+    final n = labels.length;
+    final sweep = 2 * pi / n;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final fill = Paint()..style = PaintingStyle.fill;
+    final line = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..color = lineColor;
+
+    for (var i = 0; i < n; i++) {
+      final start = -pi / 2 + i * sweep;
+      fill.color = colors[i % colors.length];
+      canvas.drawArc(rect, start, sweep, true, fill);
+      canvas.drawArc(rect, start, sweep, true, line);
+
+      canvas.save();
+      canvas.translate(center.dx, center.dy);
+      canvas.rotate(start + sweep / 2);
+      final tp = TextPainter(
+        text: TextSpan(
+          text: labels[i],
+          style: TextStyle(
+            color: textColors[i % textColors.length],
+            fontSize: 20,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout(maxWidth: radius * 0.6);
+      tp.paint(canvas, Offset(radius * 0.38, -tp.height / 2));
+      canvas.restore();
+    }
+
+    canvas.drawCircle(center, radius * 0.1, Paint()..color = hubColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant WheelPainter oldDelegate) => true;
 }
