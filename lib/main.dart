@@ -1,5 +1,65 @@
+import 'dart:async';
 import 'dart:math';
 import 'package:flutter/material.dart';
+
+// ---------- События ----------
+
+enum LiveEventType { like, gift, comment }
+
+class LiveEvent {
+  LiveEvent(
+    this.type, {
+    this.user = 'Зритель',
+    this.text = '',
+    this.amount = 1,
+  });
+
+  final LiveEventType type;
+  final String user;
+  final String text;
+  final int amount;
+
+  IconData get icon {
+    switch (type) {
+      case LiveEventType.like:
+        return Icons.favorite;
+      case LiveEventType.gift:
+        return Icons.card_giftcard;
+      case LiveEventType.comment:
+        return Icons.chat_bubble;
+    }
+  }
+
+  String get describe {
+    switch (type) {
+      case LiveEventType.like:
+        return '$user: лайк';
+      case LiveEventType.gift:
+        return '$user: подарок ×$amount';
+      case LiveEventType.comment:
+        return '$user: $text';
+    }
+  }
+}
+
+class EventBus {
+  EventBus._();
+  static final EventBus instance = EventBus._();
+
+  final StreamController<LiveEvent> _controller =
+      StreamController<LiveEvent>.broadcast();
+  final List<LiveEvent> log = [];
+
+  Stream<LiveEvent> get stream => _controller.stream;
+
+  void emit(LiveEvent event) {
+    log.insert(0, event);
+    if (log.length > 30) log.removeLast();
+    _controller.add(event);
+  }
+}
+
+// ---------- Приложение ----------
 
 void main() => runApp(const GamesApp());
 
@@ -37,10 +97,28 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _index = 0;
 
+  void _openSimulator() {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (context) => const SimulatorSheet(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Live Games')),
+      appBar: AppBar(
+        title: const Text('Live Games'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bolt),
+            tooltip: 'Симулятор событий',
+            onPressed: _openSimulator,
+          ),
+        ],
+      ),
       body: IndexedStack(
         index: _index,
         children: const [ClickerPage(), VoteyPage(), WheelPage()],
@@ -59,6 +137,108 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+// ---------- Симулятор событий ----------
+
+class SimulatorSheet extends StatelessWidget {
+  const SimulatorSheet({super.key});
+
+  static final Random _rnd = Random();
+  static const List<String> _names = [
+    'Аня',
+    'Макс',
+    'Лена',
+    'Игорь',
+    'Соня',
+    'Артём',
+  ];
+
+  void _emit(LiveEventType type, {String text = '', int amount = 1}) {
+    final name = _names[_rnd.nextInt(_names.length)];
+    EventBus.instance.emit(
+      LiveEvent(type, user: name, text: text, amount: amount),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = Theme.of(context).textTheme;
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Симулятор событий', style: t.titleLarge),
+            const SizedBox(height: 4),
+            Text(
+              'Так будут приходить лайки, подарки и комментарии из эфира.',
+              style: t.bodySmall,
+            ),
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton.tonalIcon(
+                  onPressed: () => _emit(LiveEventType.like),
+                  icon: const Icon(Icons.favorite),
+                  label: const Text('Лайк'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _emit(LiveEventType.gift),
+                  icon: const Icon(Icons.card_giftcard),
+                  label: const Text('Подарок'),
+                ),
+                FilledButton.tonalIcon(
+                  onPressed: () => _emit(LiveEventType.gift, amount: 5),
+                  icon: const Icon(Icons.redeem),
+                  label: const Text('Большой подарок ×5'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _emit(LiveEventType.comment, text: 'A'),
+                  child: const Text('Комментарий A'),
+                ),
+                OutlinedButton(
+                  onPressed: () => _emit(LiveEventType.comment, text: 'B'),
+                  child: const Text('Комментарий B'),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+            Text('Последние события', style: t.titleSmall),
+            SizedBox(
+              height: 220,
+              child: StreamBuilder<LiveEvent>(
+                stream: EventBus.instance.stream,
+                builder: (context, snapshot) {
+                  final log = EventBus.instance.log;
+                  if (log.isEmpty) {
+                    return const Center(child: Text('Пока пусто'));
+                  }
+                  return ListView.builder(
+                    itemCount: log.length,
+                    itemBuilder: (context, i) {
+                      final e = log[i];
+                      return ListTile(
+                        dense: true,
+                        leading: Icon(e.icon),
+                        title: Text(e.describe),
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------- Кликер ----------
+
 class ClickerPage extends StatefulWidget {
   const ClickerPage({super.key});
 
@@ -68,6 +248,25 @@ class ClickerPage extends StatefulWidget {
 
 class _ClickerPageState extends State<ClickerPage> {
   int _count = 0;
+  StreamSubscription<LiveEvent>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = EventBus.instance.stream.listen((e) {
+      if (e.type == LiveEventType.like) {
+        setState(() => _count += e.amount);
+      } else if (e.type == LiveEventType.gift) {
+        setState(() => _count += 10 * e.amount);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -83,12 +282,14 @@ class _ClickerPageState extends State<ClickerPage> {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               FilledButton(
-                onPressed: () => setState(() => _count += 1),
+                onPressed: () => EventBus.instance
+                    .emit(LiveEvent(LiveEventType.like, user: 'Ты')),
                 child: const Text('Лайк +1'),
               ),
               const SizedBox(width: 16),
               FilledButton.tonal(
-                onPressed: () => setState(() => _count += 10),
+                onPressed: () => EventBus.instance
+                    .emit(LiveEvent(LiveEventType.gift, user: 'Ты')),
                 child: const Text('Подарок +10'),
               ),
             ],
@@ -104,6 +305,8 @@ class _ClickerPageState extends State<ClickerPage> {
   }
 }
 
+// ---------- Голосование ----------
+
 class VoteyPage extends StatefulWidget {
   const VoteyPage({super.key});
 
@@ -114,11 +317,38 @@ class VoteyPage extends StatefulWidget {
 class _VoteyPageState extends State<VoteyPage> {
   int _a = 0;
   int _b = 0;
+  StreamSubscription<LiveEvent>? _sub;
 
-  Widget _option(String name, int votes, double share, VoidCallback onTap) {
+  @override
+  void initState() {
+    super.initState();
+    _sub = EventBus.instance.stream.listen((e) {
+      if (e.type != LiveEventType.comment) return;
+      final text = e.text.trim().toUpperCase();
+      if (text == 'A' || text == 'А' || text == '1') {
+        setState(() => _a++);
+      } else if (text == 'B' || text == 'В' || text == '2') {
+        setState(() => _b++);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
+
+  void _vote(String letter) {
+    EventBus.instance.emit(
+      LiveEvent(LiveEventType.comment, user: 'Ты', text: letter),
+    );
+  }
+
+  Widget _option(String name, int votes, double share) {
     return Card(
       child: InkWell(
-        onTap: onTap,
+        onTap: () => _vote(name),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -150,9 +380,9 @@ class _VoteyPageState extends State<VoteyPage> {
         mainAxisAlignment: MainAxisAlignment.center,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          _option('A', _a, pa, () => setState(() => _a++)),
+          _option('A', _a, pa),
           const SizedBox(height: 16),
-          _option('B', _b, pb, () => setState(() => _b++)),
+          _option('B', _b, pb),
           const SizedBox(height: 24),
           Text('Всего голосов: $total', textAlign: TextAlign.center),
           TextButton(
@@ -168,6 +398,8 @@ class _VoteyPageState extends State<VoteyPage> {
   }
 }
 
+// ---------- Колесо ----------
+
 class WheelPage extends StatefulWidget {
   const WheelPage({super.key});
 
@@ -182,10 +414,25 @@ class _WheelPageState extends State<WheelPage> {
   double _turns = 0;
   bool _spinning = false;
   int? _pendingIndex;
-  String _result = 'Нажми «Крутить»';
+  String _result = 'Нажми «Крутить» или пришли подарок';
+  StreamSubscription<LiveEvent>? _sub;
+
+  @override
+  void initState() {
+    super.initState();
+    _sub = EventBus.instance.stream.listen((e) {
+      if (e.type == LiveEventType.gift) _spin();
+    });
+  }
+
+  @override
+  void dispose() {
+    _sub?.cancel();
+    super.dispose();
+  }
 
   void _spin() {
-    if (_spinning) return;
+    if (_spinning || !mounted) return;
     final n = _prizes.length;
     final i = _rnd.nextInt(n);
     final f = 1 - (i + 0.5) / n + (_rnd.nextDouble() - 0.5) * 0.8 / n;
