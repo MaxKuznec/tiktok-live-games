@@ -191,6 +191,7 @@ footer a { color: var(--primary); }
     <div>
       <h1>Мини-игры для твоего стрима</h1>
       <p class="lead">Кликер, голосование и колесо призов для эфира. Работают на Android-телефоне, без компьютера.</p>
+            <p id="tt-user" class="lead" hidden></p>
       <div class="actions">
         <a class="btn filled" href="https://github.com/MaxKuznec/tiktok-live-games/releases/latest/download/LiveGames.apk" download>
           <span class="material-symbols-rounded" aria-hidden="true">download</span>
@@ -258,5 +259,18 @@ footer a { color: var(--primary); }
   </div>
 </footer>
 
+<script>
+  (function () {
+    var m = location.hash.match(/tiktok_name=([^&]+)/);
+    if (!m) return;
+    var box = document.getElementById("tt-user");
+    box.textContent = "Вы вошли как " + decodeURIComponent(m[1]) + ". ";
+    var out = document.createElement("a");
+    out.href = location.pathname;
+    out.textContent = "Выйти";
+    box.appendChild(out);
+    box.hidden = false;
+  })();
+</script>
 </body>
 </html>
